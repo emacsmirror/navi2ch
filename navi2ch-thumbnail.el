@@ -112,9 +112,8 @@
   (interactive)
   (let ((prop (get-text-property (point) 'navi2ch-link))
 	(default-filename (get-text-property (point) 'file-name))
-	(default-directory-org default-directory)
+	(default-directory navi2ch-thumbnail-save-content-dir)
 	filename)
-    (setq default-directory navi2ch-thumbnail-save-content-dir)
     (when default-filename
       (setq default-filename (file-name-nondirectory default-filename)))
     (setq filename (read-file-name
@@ -132,8 +131,7 @@
       (if (or (not (file-exists-p filename))
 	      (y-or-n-p (format "File `%s' exists; overwrite? "
 				filename)))
-	  (copy-file prop filename t)))
-    (setq default-directory default-directory-org)))
+	  (copy-file prop filename t)))))
 
 (defun navi2ch-thumbnail-show-image-not-image-url (url &optional force)
   "imepita等のURLが画像っぽくない場合の処理"
