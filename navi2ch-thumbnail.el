@@ -85,12 +85,14 @@
   :type 'string
   :group 'navi2ch)
 
-(defcustom navi2ch-thumbnail-image-convert-program "/opt/local/bin/convert"
+(defcustom navi2ch-thumbnail-image-convert-program
+  (executable-find "convert")
   "* サムネイル作成プログラム"
   :type 'string
   :group 'navi2ch)
 
-(defcustom navi2ch-thumbnail-image-identify-program "/opt/local/bin/identify"
+(defcustom navi2ch-thumbnail-image-identify-program
+  (executable-find "identify")
   "* サムネイル画像判別プログラム"
   :type 'string
   :group 'navi2ch)
