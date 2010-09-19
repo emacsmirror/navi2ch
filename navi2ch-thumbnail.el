@@ -109,31 +109,31 @@
 
 (defun navi2ch-thumbnail-save-content ()
   "キャッシュから画像を保存(サムネイルではなく元画像)"
-	(interactive)
-	(let ((prop (get-text-property (point) 'navi2ch-link))
-	      (default-filename (get-text-property (point) 'file-name))
-	      (default-directory-org default-directory)
-	      filename)
-	  (setq default-directory navi2ch-thumbnail-save-content-dir)
-	  (when default-filename
-	    (setq default-filename (file-name-nondirectory default-filename)))
-	  (setq filename (read-file-name
-			  (if default-filename
-			      (format "Save file (default `%s'): "
-				      default-filename)
-			    "Save file: ")
-			  nil default-filename))
-	  (when (file-directory-p filename)
-	    (if default-filename
-		(setq filename (expand-file-name default-filename filename))
-	      (error "%s is a directory" filename)))
-	  (if (not (file-writable-p filename))
-	      (error "File not writable: %s" filename)
-	    (if (or (not (file-exists-p filename))
-		    (y-or-n-p (format "File `%s' exists; overwrite? "
-				      filename)))
-		(copy-file prop filename t)))
-	  (setq default-directory default-directory-org)))
+  (interactive)
+  (let ((prop (get-text-property (point) 'navi2ch-link))
+	(default-filename (get-text-property (point) 'file-name))
+	(default-directory-org default-directory)
+	filename)
+    (setq default-directory navi2ch-thumbnail-save-content-dir)
+    (when default-filename
+      (setq default-filename (file-name-nondirectory default-filename)))
+    (setq filename (read-file-name
+		    (if default-filename
+			(format "Save file (default `%s'): "
+				default-filename)
+		      "Save file: ")
+		    nil default-filename))
+    (when (file-directory-p filename)
+      (if default-filename
+	  (setq filename (expand-file-name default-filename filename))
+	(error "%s is a directory" filename)))
+    (if (not (file-writable-p filename))
+	(error "File not writable: %s" filename)
+      (if (or (not (file-exists-p filename))
+	      (y-or-n-p (format "File `%s' exists; overwrite? "
+				filename)))
+	  (copy-file prop filename t)))
+    (setq default-directory default-directory-org)))
 
 (defun navi2ch-thumbnail-show-image-not-image-url (url &optional force)
   "imepita等のURLが画像っぽくない場合の処理"
