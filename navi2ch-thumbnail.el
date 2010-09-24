@@ -107,31 +107,33 @@
   :type 'integer
   :group 'navi2ch)
 
-(defun navi2ch-thumbnail-save-content ()
+(defun navi2ch-thumbnail-save-content (cache-filename filename)
   "キャッシュから画像を保存(サムネイルではなく元画像)"
-  (interactive)
-  (let ((prop (get-text-property (point) 'navi2ch-link))
-	(default-filename (get-text-property (point) 'file-name))
-	(default-directory navi2ch-thumbnail-save-content-dir)
-	filename)
-    (when default-filename
-      (setq default-filename (file-name-nondirectory default-filename)))
-    (setq filename (read-file-name
-		    (if default-filename
-			(format "Save file (default `%s'): "
-				default-filename)
-		      "Save file: ")
-		    nil default-filename))
-    (when (file-directory-p filename)
-      (if default-filename
-	  (setq filename (expand-file-name default-filename filename))
-	(error "%s is a directory" filename)))
-    (if (not (file-writable-p filename))
-	(error "File not writable: %s" filename)
-      (if (or (not (file-exists-p filename))
-	      (y-or-n-p (format "File `%s' exists; overwrite? "
-				filename)))
-	  (copy-file prop filename t)))))
+  (interactive
+   (let* ((prop-filename (get-text-property (point) 'file-name))
+	  (default-filename (and prop-filename
+				 (file-name-nondirectory prop-filename))))
+     (list (or (get-text-property (point) 'navi2ch-link)
+	       (error "No file to save."))
+	   (let ((filename (read-file-name (if default-filename
+					       (format "Save file (default `%s'): "
+						       default-filename)
+					     "Save file: ")
+					   navi2ch-thumbnail-save-content-dir
+					   default-filename)))
+	     (if (file-directory-p filename)
+		 (if default-filename
+		     (expand-file-name default-filename filename)
+		   (error "%s is a directory" filename))
+	       filename)))))
+  (unless cache-filename
+    (error "No file to save."))
+  (unless (file-writable-p filename)
+    (error "File not writable: %s" filename))
+  (when (or (not (file-exists-p filename))
+	    (y-or-n-p (format "File `%s' exists; overwrite? "
+			      filename)))
+    (copy-file cache-filename filename t)))
 
 (defun navi2ch-thumbnail-show-image-not-image-url (url &optional force)
   "imepita等のURLが画像っぽくない場合の処理"
