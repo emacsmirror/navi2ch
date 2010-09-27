@@ -130,18 +130,17 @@
 (defun navi2ch-thumbnail-show-image-not-image-url (url &optional force)
   "imepita等のURLが画像っぽくない場合の処理"
   (cond
-   ;;imepita
+   ;; imepita
    ((string-match "h?ttp://w*\.?imepita.jp/\\([0-9/]+\\)" url)
     (setq alturl (format "http://imepita.jp/image/%s" (match-string 1 url)))
     (message "imepita:%s %s" url alturl)
     (if (navi2ch-thumbnail-insert-image-cache url)
-;    (if (navi2ch-thumbnail-insert-image-cache alturl)
+	;; (if (navi2ch-thumbnail-insert-image-cache alturl)
 	(message "cache read")
       (if force
 	  (progn
 	    (setq rtn (navi2ch-thumbnail-show-image alturl url))
 	    (message "return %s" rtn)))))
-   
    ((string-match "h?ttp://i-bbs.sijex.net/imageDisp.jsp\\?id=watahiki&file=\\([0-9o]+\.jpg\\)" url)
     (message "sjex %s" url)
     (setq alturl (format "http://image.i-bbs.sijex.net/bbs/watahiki/%s" (match-string 1 url)))
@@ -150,8 +149,7 @@
       (message "sijex:%s %s" url alturl)
       (if force
 	  (navi2ch-thumbnail-show-image alturl url))))
-   (t nil)
-   ))
+   (t nil)))
   
 (defun navi2ch-thumbnail-show-image-external ()
   "外部ビューアーで表示"
