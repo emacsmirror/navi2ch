@@ -105,7 +105,7 @@
   :type 'integer
   :group 'navi2ch)
 
-(defun navi2ch-thumbnail-save-content (cache-filename filename)
+(defun navi2ch-thumbnail-save-content (cache-filename filename &optional overwrite)
   "キャッシュから画像を保存(サムネイルではなく元画像)"
   (interactive
    (let* ((prop-filename (get-text-property (point) 'file-name))
@@ -123,16 +123,9 @@
 		 (if default-filename
 		     (expand-file-name default-filename filename)
 		   (error "%s is a directory" filename))
-	       filename)))))
-  (unless (and cache-filename
-	       (file-exists-p cache-filename))
-    (error "No file to save."))
-  (unless (file-writable-p filename)
-    (error "File not writable: %s" filename))
-  (when (or (not (file-exists-p filename))
-	    (y-or-n-p (format "File `%s' exists; overwrite? "
-			      filename)))
-    (copy-file cache-filename filename t)))
+	       filename))
+	   0)))
+  (copy-file cache-filename filename overwrite))
 
 (defun navi2ch-thumbnail-show-image-not-image-url (url &optional force)
   "imepita等のURLが画像っぽくない場合の処理"
