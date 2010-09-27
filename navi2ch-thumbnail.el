@@ -135,7 +135,6 @@
     (setq alturl (concat "http://imepita.jp/image/" (match-string 1 url)))
     (message "imepita: %s %s" url alturl)
     (if (navi2ch-thumbnail-insert-image-cache url)
-	;; (if (navi2ch-thumbnail-insert-image-cache alturl)
 	(message "cache read")
       (if force
 	  (progn
