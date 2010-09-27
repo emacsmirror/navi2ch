@@ -132,7 +132,7 @@
   (cond
    ;; imepita
    ((string-match "h?ttp://w*\.?imepita.jp/\\([0-9/]+\\)" url)
-    (setq alturl (format "http://imepita.jp/image/%s" (match-string 1 url)))
+    (setq alturl (concat "http://imepita.jp/image/" (match-string 1 url)))
     (message "imepita:%s %s" url alturl)
     (if (navi2ch-thumbnail-insert-image-cache url)
 	;; (if (navi2ch-thumbnail-insert-image-cache alturl)
@@ -143,7 +143,7 @@
 	    (message "return %s" rtn)))))
    ((string-match "h?ttp://i-bbs.sijex.net/imageDisp.jsp\\?id=watahiki&file=\\([0-9o]+\.jpg\\)" url)
     (message "sjex %s" url)
-    (setq alturl (format "http://image.i-bbs.sijex.net/bbs/watahiki/%s" (match-string 1 url)))
+    (setq alturl (concat "http://image.i-bbs.sijex.net/bbs/watahiki/" (match-string 1 url)))
     (if (navi2ch-thumbnail-insert-image-cache alturl)
 	(message "sijex キャッシュから読み込みました")
       (message "sijex:%s %s" url alturl)
