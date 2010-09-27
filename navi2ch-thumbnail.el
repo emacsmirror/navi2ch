@@ -124,7 +124,8 @@
 		     (expand-file-name default-filename filename)
 		   (error "%s is a directory" filename))
 	       filename)))))
-  (unless cache-filename
+  (unless (and cache-filename
+	       (file-exists-p cache-filename))
     (error "No file to save."))
   (unless (file-writable-p filename)
     (error "File not writable: %s" filename))
