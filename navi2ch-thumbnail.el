@@ -178,8 +178,7 @@
       (message "deleting file:%s " file))
     (when (file-exists-p thumb)
       (delete-file thumb)
-      (message "deleting thumbnail:%s " thumb))
-    ))
+      (message "deleting thumbnail:%s " thumb))))
 
 (defun navi2ch-thumbnail-insert-image-cache (url)
   (if (string-match "h?ttp://\\(.+\\)$" url)
@@ -287,9 +286,7 @@
 	    ;既に表示済みの画像は無視
 	    (when (not (string= prop "shown"))
 	      (goto-char beg)
-	      (navi2ch-thumbnail-select-current-link)
-	      )
-	    ))))))
+	      (navi2ch-thumbnail-select-current-link))))))))
 
 (defun navi2ch-thumbnail-image-escape-filename (filename)
   "ファイル名に使えない文字をエスケープ"
@@ -307,8 +304,7 @@
     (when (not (string= prop "shown"))
       (if alturl
 	  (navi2ch-thumbnail-show-image-subr url alturl)
-	(navi2ch-thumbnail-show-image-subr url alturl)))
-    ))
+	(navi2ch-thumbnail-show-image-subr url alturl)))))
 
 (defun navi2ch-thumbnail-show-image-subr (url &optional org-url)
   (save-excursion
@@ -402,40 +398,34 @@
 	    (let ((url (concat "http://" (match-string 1)))
 		  (beg (match-beginning 0))
 		  (end (match-end 0)))
-	      (add-text-properties beg end '(my-navi2ch "shown")))))
-      ))))
+	      (add-text-properties beg end '(my-navi2ch "shown")))))))))
 
 (setq navi2ch-thumbnail-404-list
-      (list
-	    "/404\.s?html$"
-	    "10mai_404\.html$"
-	    ))
+      (list "/404\.s?html$"
+	    "10mai_404\.html$"))
 
 (defun navi2ch-thumbnail-select-current-link (&optional browse-p)
   (interactive "P")
   (let ((type (get-text-property (point) 'navi2ch-link-type))
 	(prop (get-text-property (point) 'navi2ch-link)))
     (cond
-	  ((eq type 'url)
-	   (cond
-	    ((navi2ch-thumbnail-show-image-not-image-url prop t)
-	     (message "not image url but image"))
+     ((eq type 'url)
+      (cond
+       ((navi2ch-thumbnail-show-image-not-image-url prop t)
+	(message "not image url but image"))
 
-	    ((and (file-name-extension prop)
-		  (member (downcase (file-name-extension prop))
-			  navi2ch-browse-url-image-extentions))
-	     (when (not (navi2ch-thumbnail-insert-image-cache
-			 (substring prop 7 nil)))
-	       (setq url (navi2ch-thumbnail-url-status-check prop))
-	       (dolist (l navi2ch-thumbnail-404-list)
-		 (if (string-match l url)
-		     (error "ファイルが404 url=%s" url)))
-		 (navi2ch-thumbnail-show-image url prop)
-		 ))))
-
-	  ((eq type 'image)
-	   (navi2ch-thumbnail-show-image-external))
-	  )))
+       ((and (file-name-extension prop)
+	     (member (downcase (file-name-extension prop))
+		     navi2ch-browse-url-image-extentions))
+	(when (not (navi2ch-thumbnail-insert-image-cache
+		    (substring prop 7 nil)))
+	  (setq url (navi2ch-thumbnail-url-status-check prop))
+	  (dolist (l navi2ch-thumbnail-404-list)
+	    (if (string-match l url)
+		(error "ファイルが404 url=%s" url)))
+	  (navi2ch-thumbnail-show-image url prop)))))
+     ((eq type 'image)
+      (navi2ch-thumbnail-show-image-external)))))
 
 (setq navi2ch-thumbnail-enable-status-check t)
 
@@ -446,8 +436,7 @@
       (while (not (or (string= status "200")
 		      (string= status "201")
 		      (string= status "400")
-		      (string= status "405")
-		      ))
+		      (string= status "405")))
 	(setq proc (navi2ch-net-send-request
 		    url "HEAD"
 		    (list '("User-Agent:" . "navi2ch 1.6" )
@@ -465,17 +454,14 @@
 	(cond ((or (string= status "404")
 		   (string= status "403")
 		   (string= status "408")
-		   (string= status "503")
-		   )
+		   (string= status "503"))
 	       (error "ブラウズするのやめました return code %s" status))
-
 	      ((or (string= status "301")
 		   (string= status "302")
 		   (string= status "303"))
 	       (setq header (navi2ch-net-get-header proc))
 	       (setq url (cdr (assq 'location header)))
-	       (message "loacation %s" url))
-	      ))))
+	       (message "loacation %s" url))))))
   url)
 
 (defun navi2ch-thumbnail-image-jpeg-identify (data)
@@ -488,113 +474,103 @@
 	  (cond
 	   ((= code #xc4)
 	    ;; DHT
-	      (message "navi2ch-thumbnail-image-jpeg-identify:code FFC4 DHT")
-	    )
+	      (message "navi2ch-thumbnail-image-jpeg-identify:code FFC4 DHT"))
 	   ((and (>= code #xc0) (<= code #xcF))
 	    ;; SOF0 DCT
 	    ;; SOF2
 	    (if (= code #xc2)
 		(message "navi2ch-thumbnail-image-jpeg-identify:SOF2"))
-	    (let (
-		  (sample (aref data (+ i 4)))
+	    (let ((sample (aref data (+ i 4)))
 		  (ysize (+ (lsh (aref data (+ i 5)) 8)
 			    (aref data (+ i 6))))
 		  (xsize (+ (lsh (aref data (+ i 7)) 8)
 			    (aref data (+ i 8)))))
-	      (throw 'jfif (list xsize ysize anime))
-	      )))
+	      (throw 'jfif (list xsize ysize anime)))))
 	  ;;skip x00(end marker) xff(start marker)
 	  (setq i (+ i 2 nbytes)))))))
 
 (defun navi2ch-thumbnail-image-png-identify (data)
-    (let ((i 8)
-	  (anime nil))
-      ;; magic number
-      (when (string-match "\\`\x49\x48\x44\x52"
-			    (substring data (+ i 4)))
-	(let (
-	      ;; 4byte
-	      (xsize
-	       (+
-		(lsh (aref data (+ i 8)) 24)
-		(lsh (aref data (+ i 9)) 16)
-		(lsh (aref data (+ i 10)) 8)
-		(aref data (+ i 11))))
-	      ;; 4byte
-	      (ysize
-	       (+
-		(lsh (aref data (+ i 12)) 24)
-		(lsh (aref data (+ i 13)) 16)
-		(lsh (aref data (+ i 14)) 8)
-		(aref data (+ i 15)))))
-	  (list xsize ysize anime)
-	  ))))
+  (let ((i 8)
+	(anime nil))
+    ;; magic number
+    (when (string-match "\\`\x49\x48\x44\x52"
+			(substring data (+ i 4)))
+      (let (;; 4byte
+	    (xsize
+	     (+
+	      (lsh (aref data (+ i 8)) 24)
+	      (lsh (aref data (+ i 9)) 16)
+	      (lsh (aref data (+ i 10)) 8)
+	      (aref data (+ i 11))))
+	    ;; 4byte
+	    (ysize
+	     (+
+	      (lsh (aref data (+ i 12)) 24)
+	      (lsh (aref data (+ i 13)) 16)
+	      (lsh (aref data (+ i 14)) 8)
+	      (aref data (+ i 15)))))
+	(list xsize ysize anime)))))
 
 (defun navi2ch-thumbnail-image-gif-identify (data)
-    (let ((i 0)
-	  (len (length data))
-	  xsize
-	  ysize
-	  (anime nil)
-	  sgct)
-      (setq i (+ i 6))
+  (let ((i 0)
+	(len (length data))
+	xsize
+	ysize
+	(anime nil)
+	sgct)
+    (setq i (+ i 6))
 
-      ;; GIF Header
-      ;; 2byte
-      (setq xsize (+
-		   (lsh (aref data (+ i 1)) 8)
+    ;; GIF Header
+    ;; 2byte
+    (setq xsize (+ (lsh (aref data (+ i 1)) 8)
 		   (aref data i)))
-      (setq i (+ i 2))
-      ;; 2byte
-      (setq ysize (+
-		   (lsh (aref data (+ i 1)) 8)
+    (setq i (+ i 2))
+    ;; 2byte
+    (setq ysize (+ (lsh (aref data (+ i 1)) 8)
 		   (aref data (+ i 0))))
-      (setq i (+ i 2))
-      ;; Size of Global Color Table(3 Bits)
-      (setq sgct (+ 1 (logand (aref data i) 7)))
-      (setq i (+ i 3))
+    (setq i (+ i 2))
+    ;; Size of Global Color Table(3 Bits)
+    (setq sgct (+ 1 (logand (aref data i) 7)))
+    (setq i (+ i 3))
 
-      ;; skip Global Color Table
-      (setq i (+ i (* (expt 2 sgct) 3)))
+    ;; skip Global Color Table
+    (setq i (+ i (* (expt 2 sgct) 3)))
 
-      ;; Block
-      (while (< i len)
+    ;; Block
+    (while (< i len)
+      (cond
+       ((= (aref data (+ i 0)) #x21)
+	(setq i (+ i 1))
 	(cond
-	 ((= (aref data (+ i 0)) #x21)
+	 ;; Graphic Control Extension
+	 ((= (aref data (+ i 0)) #xf9)
+	  (message "Graphic Control Extension")
+	  (setq i (+ i 7)))
+
+	 ;; maybe GIF Anime
+	 ((= (aref data (+ i 0)) #xff)
+	  (message "Application Extension GIF ANIME")
+	  (setq anime t)
+	  (setq i (+ i 7)))
+
+	 ((= (aref data (+ i 0)) #xfe)
+	  (message "Comment Extension")
 	  (setq i (+ i 1))
-	  (cond
-	   ;; Graphic Control Extension
-	   ((= (aref data (+ i 0)) #xf9)
-	    (message "Graphic Control Extension")
-	    (setq i (+ i 7)))
-
-	   ;; maybe GIF Anime
-	   ((= (aref data (+ i 0)) #xff)
-	    (message "Application Extension GIF ANIME")
-	    (setq anime t)
-	    (setq i (+ i 7)))
-
-	   ((= (aref data (+ i 0)) #xfe)
-	    (message "Comment Extension")
-	    (setq i (+ i 1))
-	    (setq i (+ i (aref data i)))
-	    (setq i (+ i 2))
-	    )))
-
-	 ;; image block table
-	 ((= (aref data (+ i 0)) #x2c)
-	  (message "Image Block")
-	  (setq i (+ i 9))
-	  (setq slct (+ 1(logand (aref data i) 7)))
-	  (setq i (+ i (* (expt 2 slct) 3)))
 	  (setq i (+ i (aref data i)))
-	  (setq i (+ i 1))
-	  (message "last i:%s" i)
-	  )
-	 (t
-	  (setq i (+ i 1024)))
-	))
-      (list xsize ysize anime)))
+	  (setq i (+ i 2))
+	  )))
+
+       ;; image block table
+       ((= (aref data (+ i 0)) #x2c)
+	(message "Image Block")
+	(setq i (+ i 9))
+	(setq slct (+ 1(logand (aref data i) 7)))
+	(setq i (+ i (* (expt 2 slct) 3)))
+	(setq i (+ i (aref data i)))
+	(setq i (+ i 1))
+	(message "last i:%s" i))
+       (t (setq i (+ i 1024)))))
+    (list xsize ysize anime)))
 
 (defun navi2ch-thumbnail-image-identify (file &optional size)
   "画像ファイルから幅,高さ,GIFアニメか？を取得してlistで返す。
@@ -641,6 +617,4 @@
 		 "\\([0-9]+\\) \\([0-9]+\\) \\([0-9]+\\) \\([0-9]+\\)")
 	    (list (string-to-number (match-string 2))
 		  (string-to-number (match-string 3))
-		  (> (string-to-number (match-string 1)) 1)
-		  ))))
-	 ))))
+		  (> (string-to-number (match-string 1)) 1)))))))))
