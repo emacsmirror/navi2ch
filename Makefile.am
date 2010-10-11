@@ -42,7 +42,7 @@ elcdist: $(ELCFILES)
 $(srcdir)/bcomp.el: @MAINTAINER_MODE_TRUE@ $(srcdir)/bcomp.el.in $(srcdir)/Makefile.am
 	rm -f $@ && \
 	list=`for file in $(lisp_LISP); do echo -n "\"$$file\" "; done` && \
-	sed -e "s/@\(lisp_LISP\)@/$$list/" < $(srcdir)/bcomp.el.in > $@
+	sed -e "s/@\(lisp_LISP\)@/$$list/;" < $(srcdir)/bcomp.el.in > $@ || rm $@
 
 Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	cd $(top_builddir) && \
@@ -56,4 +56,3 @@ update:
 	( cd $(srcdir); $(CVS) update -P -d ) && \
 	$(MAKE) $(AM_MAKEFLAGS) Makefiles
 
-check: $(ELCFILES)

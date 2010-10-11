@@ -691,7 +691,7 @@ elcdist: $(ELCFILES)
 $(srcdir)/bcomp.el: @MAINTAINER_MODE_TRUE@ $(srcdir)/bcomp.el.in $(srcdir)/Makefile.am
 	rm -f $@ && \
 	list=`for file in $(lisp_LISP); do echo -n "\"$$file\" "; done` && \
-	sed -e "s/@\(lisp_LISP\)@/$$list/" < $(srcdir)/bcomp.el.in > $@
+	sed -e "s/@\(lisp_LISP\)@/$$list/;" < $(srcdir)/bcomp.el.in > $@ || rm $@
 
 Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	cd $(top_builddir) && \
@@ -704,8 +704,6 @@ Makefiles: $(top_builddir)/config.status
 update:
 	( cd $(srcdir); $(CVS) update -P -d ) && \
 	$(MAKE) $(AM_MAKEFLAGS) Makefiles
-
-check: $(ELCFILES)
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:
