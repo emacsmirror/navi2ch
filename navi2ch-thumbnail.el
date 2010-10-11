@@ -108,6 +108,17 @@
   :type 'integer
   :group 'navi2ch)
 
+(defvar navi2ch-thumbnail-404-list
+  (list "/404\.s?html$"
+	"10mai_404\.html$"))
+
+(defvar navi2ch-thumbnail-enable-status-check t)
+
+(eval-and-compile
+  (defalias 'navi2ch-create-image (if (fboundp 'create-animated-image)
+				      'create-animated-image
+				    'create-image)))
+
 (defun navi2ch-thumbnail-save-content
   (cache-filename filename &optional overwrite)
   "キャッシュから画像を保存(サムネイルではなく元画像)"
@@ -163,9 +174,10 @@
   (let ((type (car (get-text-property (point) 'display)))
 	(prop (get-text-property (point) 'navi2ch-link)))
     (when (eq type 'image)
-      (if (equal system-type 'windows-nt)
-	  (setq prop (navi2ch-replace-string "/" "\\\\" prop t )))
-      (navi2ch-browse-url-image prop))))
+      (navi2ch-browse-url-image
+       (if (eq system-type 'windows-nt)
+	   (navi2ch-replace-string "/" "\\\\" prop t)
+	 prop)))))
 
 (defun navi2ch-thumbnail-image-delete-cache ()
   "取得した画像を削除。キャッシュが無くなるの表示されなくなる"
@@ -183,7 +195,6 @@
 (defun navi2ch-thumbnail-insert-image-cache (url)
   (if (string-match "h?ttp://\\(.+\\)$" url)
       (setq url (match-string 1 url)))
-
   (let ((thumb_dir navi2ch-thumbnail-thumbnail-directory)
 	file thumb)
     (setq url (navi2ch-thumbnail-image-escape-filename url))
@@ -194,7 +205,7 @@
     (let ((buffer-read-only nil))
       (when (file-exists-p thumb)
 	(move-beginning-of-line nil)
-	(insert-image (create-image thumb))
+	(insert-image (navi2ch-create-image thumb))
 	(add-text-properties
 	 (1- (point)) (point)
 	 (list 'link t 'link-head t
@@ -207,10 +218,9 @@
 			(round (/ (nth 7 (file-attributes file)) 1024))
 			(if (nth 2 image-attr) " GIF ANIME" "")))
       (if (re-search-forward
-	   (concat "h?ttp://\\([^ \t\n\r]+\\.\\("
-		   (mapconcat (lambda (s) s)
-			      navi2ch-browse-url-image-extentions "\\|")
-		   "\\)\\)") nil t)
+	   (concat "h?ttp://\\([^ \t\n\r]+\\."
+		   (regexp-opt navi2ch-browse-url-image-extentions)
+		   "\\)") nil t)
 	  (save-excursion
 	    (let ((url (concat "http://" (match-string 1)))
 		  (beg (match-beginning 0))
@@ -223,113 +233,98 @@
   "スレが再描画される時にサムネも再描画"
   (interactive)
   (let (url file thumb_dir)
-    (if (display-images-p)
-	(save-excursion
-	  (let ((buffer-read-only nil))
-	    (goto-char (point-min))
-	    (while (re-search-forward
-		    (concat "\\(h?t?tps?://imepita.jp/[0-9/]+\\|"
-			    "h?t?tps?://i-bbs.sijex.net/imageDisp.jsp"
-			    "\\?id=watahiki&file=[0-9o]+\.jpg\\|"
-			    (concat "h?t?tps?://[^ \t\n\r]+\\."
-				    "\\(gif\\|jpg\\|jpeg\\|png\\)"
-			    "\\)"))
-		    nil t)
-	      (setq url (match-string 1))
-	      (if  (string-match "\\(h?t?tps?://imepita.jp/[0-9/]+\\|h?t?tps?://i-bbs.sijex.net/imageDisp.jsp\\?id=watahiki&file=[0-9o]+\.jpg\\)" url)
-		    (navi2ch-thumbnail-show-image-not-image-url url)
-		(navi2ch-thumbnail-insert-image-cache url))
-	    ))))))
+    (when (display-images-p)
+      (save-excursion
+	(let ((buffer-read-only nil))
+	  (goto-char (point-min))
+	  (while (re-search-forward
+		  (concat "\\(h?t?tps?://imepita.jp/[0-9/]+\\|"
+			  "h?t?tps?://i-bbs.sijex.net/imageDisp.jsp"
+			  "\\?id=watahiki&file=[0-9o]+\.jpg\\|"
+			  "h?t?tps?://[^ \t\n\r]+\\."
+			  "\\(gif\\|jpg\\|jpeg\\|png\\)"
+			  "\\)")
+		  nil t)
+	    (setq url (match-string 1))
+	    (if  (string-match "\\(h?t?tps?://imepita.jp/[0-9/]+\\|h?t?tps?://i-bbs.sijex.net/imageDisp.jsp\\?id=watahiki&file=[0-9o]+\.jpg\\)" url)
+		(navi2ch-thumbnail-show-image-not-image-url url)
+	      (navi2ch-thumbnail-insert-image-cache url))))))))
 
 (defun navi2ch-thumbnail-all-show ()
   "1レス内の画像を連続取得表示"
   (interactive)
-  (save-excursion
-   (let (b e)
-     ;; 当該スレの範囲を取得する(もっと良い方法があるかも)
-      (when (or (when (= 1 (navi2ch-article-get-current-number))
-		    (beginning-of-buffer)
-		    t)
-		(re-search-backward
-		 "______________"
-		 nil t))
-	(next-line)
-	  (setq b (point))
-	  (when (re-search-forward
-		 (make-string (max 0
-			      (- (eval navi2ch-article-message-separator-width)
-				 (current-column)))
-			 navi2ch-article-message-separator) nil t)
-	    (setq e (point))
-	    (navi2ch-thumbnail-image-show-region b e))))))
+  (let* ((prop (get-text-property (point) 'current-number))
+	 (beg (if prop
+		  (point)
+		(previous-single-property-change (point) 'current-number)))
+	 (end (next-single-property-change
+	       (if prop (1+ (point)) (point))
+	       'current-number)))
+    (navi2ch-thumbnail-image-show-region
+     (if beg (max (1- beg) (point-min)) (point-min))
+     end)))
 
-(defun navi2ch-thumbnail-image-show-region (b e &optional force)
+(defun navi2ch-thumbnail-image-show-region (begin end &optional force)
   "リージョン内の画像URLを表示"
   (interactive "rP")
   (save-restriction
     (save-excursion
-      (let* ((num (navi2ch-article-get-current-number))
-	     (board (cdr (assq 'uri navi2ch-article-current-board))))
-	(narrow-to-region b e)
-	(goto-char b)
-	(while (re-search-forward
-		(concat "h?ttp://\\([^ \t\n\r]+\\.\\("
-			(mapconcat (lambda (s) s)
-				   navi2ch-browse-url-image-extentions "\\|")
-			"\\)\\)") nil t)
-	  (message "while navi2ch-thumbnail-show-image-region")
-	  (let ((url (concat "http://" (match-string 1)))
-		(beg (match-beginning 0))
-		(end (match-end 0))
+      (let ((num (navi2ch-article-get-current-number))
+	    (board (cdr (assq 'uri navi2ch-article-current-board)))
+	    (regex (concat "h?ttp://\\([^ \t\n\r]+\\."
+			   (regexp-opt navi2ch-browse-url-image-extentions)
+			   "\\)")))
+	(narrow-to-region begin end)
+	(goto-char begin)
+	(while (re-search-forward regex nil t)
+	  (let ((beg (match-beginning 0))
 		(prop (get-text-property (match-beginning 1)
 					 'my-navi2ch)))
-	    ;既に表示済みの画像は無視
-	    (when (not (string= prop "shown"))
+	    ;; 既に表示済みの画像は無視
+	    (unless (string= prop "shown")
 	      (goto-char beg)
 	      (navi2ch-thumbnail-select-current-link))))))))
 
 (defun navi2ch-thumbnail-image-escape-filename (filename)
   "ファイル名に使えない文字をエスケープ"
-  (setq filename (navi2ch-replace-string "-" "%2d" filename t))
-  (setq filename (navi2ch-replace-string ":" "%3a" filename t))
-  (setq filename (navi2ch-replace-string "?" "%63" filename t)))
+  (navi2ch-replace-string-regexp-alist '(("-" "%2d")
+					 (":" "%3a")
+					 ("?" "%63"))
+				       filename
+				       t))
 
-(defun navi2ch-thumbnail-show-image (url &optional alturl)
+(defun navi2ch-thumbnail-show-image (url alturl)
   "画像を縮小しインラインに表示する．"
-  (interactive)
-  (let* ((point (point))
-	 (prop  (get-text-property point 'my-navi2ch))
-	 (ext (when url
-		(file-name-extension url))))
-    (when (not (string= prop "shown"))
-      (if alturl
-	  (navi2ch-thumbnail-show-image-subr url alturl)
-	(navi2ch-thumbnail-show-image-subr url alturl)))))
+  (let ((prop  (get-text-property (point) 'my-navi2ch)))
+    (unless (string= prop "shown")
+      (navi2ch-thumbnail-show-image-subr url alturl))))
 
-(defun navi2ch-thumbnail-show-image-subr (url &optional org-url)
+(defun navi2ch-thumbnail-show-image-subr (url org-url)
   (save-excursion
     (let ((buffer-read-only nil)
 	  (thumb-dir navi2ch-thumbnail-thumbnail-directory)
 	  thumb-file file width height size anime filename)
-      (string-match "tp://\\(.+\\)$" org-url)
-      (setq file (concat thumb-dir
-			 (navi2ch-thumbnail-image-escape-filename
-			  (match-string 1 org-url))))
+      (unless (and (stringp org-url)
+		   (string-match "tp://\\(.+\\)$" org-url))
+	(error "URL not match"))
+      (setq file (expand-file-name
+		  (navi2ch-thumbnail-image-escape-filename
+		   (match-string 1 org-url))
+		  thumb-dir))
       (setq thumb-file (concat file ".jpg"))
-      (when (if org-url
-		(navi2ch-net-update-file url file nil nil nil nil
-					 (list (cons "Referer" org-url)))
-	      (navi2ch-net-update-file url file))
-	(if (not (file-exists-p file))
-	    (error "ファイルがありません %s" file))
-	(when (not (image-type-from-file-header file))
-	  (with-temp-buffer
-	    (insert-file-contents file nil 0 500)
-	    (setq buffer-error (buffer-string)))
-	  (delete-file file)
-	  (error "画像ファイルではありません %s %s" file buffer-error))
-	(string-match "/\\([^/]+\\)$" file)
-	(setq filename (match-string 1 file))
+      (when (navi2ch-net-update-file url file nil nil nil nil
+				     (when org-url
+				       (list (cons "Referer" org-url))))
+	(unless (file-exists-p file)
+	  (error "ファイルがありません %s" file))
+	(unless (image-type-from-file-header file)
+	  (let (buffer-error)
+	    (with-temp-buffer
+	      (insert-file-contents file nil 0 500)
+	      (setq buffer-error (buffer-string)))
+	    (delete-file file)
+	    (error "画像ファイルではありません %s %s" file buffer-error)))
+	(setq filename (file-name-nondirectory file))
 	(setq image-attr (navi2ch-thumbnail-image-identify file))
 	(if (not image-attr)
 	    (error "画像ファイルを識別できません %s" file))
@@ -338,48 +333,44 @@
 	(setq height (nth 1 image-attr))
 	(setq size (nth 7 (file-attributes file)))
 
-      (if (or (> width navi2ch-thumbnail-thumbsize-width)
-	      (> height navi2ch-thumbnail-thumbsize-height))
-	  (progn
-	    (with-temp-buffer
-	      (if (not anime)
-		  (call-process navi2ch-thumbnail-image-convert-program
-				nil t nil
-				"-sample"
-				(format "%sx%s"
-					navi2ch-thumbnail-thumbsize-width
-					navi2ch-thumbnail-thumbsize-height)
-				file thumb-file)
-		;;GIFアニメは1フレームだけを使う
+	(cond
+	 ((and (< width navi2ch-thumbnail-thumbsize-width)
+	       (< height navi2ch-thumbnail-thumbsize-height))
+	  (insert-image (navi2ch-create-image file)))
+	 ((fboundp 'imagemagick-register-types)
+	  (insert-image (navi2ch-create-image
+			 file
+			 'imagemagick
+			 :width navi2ch-thumbnail-thumbsize-width
+			 :height navi2ch-thumbnail-thumbsize-height)))
+	 (t
+	  (with-temp-buffer
+	    (if (or (not anime) (not (fboundp 'create-animated-image)))
 		(call-process navi2ch-thumbnail-image-convert-program
-			      nil "real buffer" nil
-			      "-scene" "0"
+			      nil t nil
 			      "-sample"
 			      (format "%sx%s"
 				      navi2ch-thumbnail-thumbsize-width
 				      navi2ch-thumbnail-thumbsize-height)
-			      file (concat  file ".jpg"))
-		(rename-file (concat (concat file "-0") ".jpg") thumb-file)
-
-		(setq delete-taraget-file-list
-		      (directory-files (file-name-directory thumb-file)
-				       t
-				       (concat (file-name-nondirectory file)
-					       "-.+\.jpg")))
-		(while (setq delfile (pop delete-taraget-file-list))
-		  (delete-file delfile)
-		  )
-		(message "gif anime %s" anime)))
-
-	    (insert-image (create-image thumb-file))
-	    (add-text-properties (1- (point)) (point)
-				 (list 'link t 'link-head t
-				       'url file 'help-echo file
-				       'navi2ch-link-type 'image
-				       'navi2ch-link file
-				       'file-name filename
-				       'width width 'height height 'size size)))
-	(insert-image (create-image file))
+			      file thumb-file)
+	      ;; GIFアニメは1フレームだけを使う
+	      (call-process navi2ch-thumbnail-image-convert-program
+			    nil t nil
+			    "-scene" "0"
+			    "-sample"
+			    (format "%sx%s"
+				    navi2ch-thumbnail-thumbsize-width
+				    navi2ch-thumbnail-thumbsize-height)
+			    file (concat file ".jpg"))
+	      (rename-file (concat file "-0" ".jpg") thumb-file)
+	      
+	      (dolist (delfile (directory-files (file-name-directory thumb-file)
+						t
+						(concat (file-name-nondirectory file)
+							"-.+\.jpg")))
+		(delete-file delfile))
+	      (message "gif anime %s" anime)))
+	  (insert-image (navi2ch-create-image thumb-file))))
 	(add-text-properties (1- (point)) (point)
 			     (list 'link t 'link-head t
 				   'url file 'help-echo file
@@ -387,22 +378,18 @@
 				   'file-name filename
 				   'width width 'height height 'size size)))
 
-	  (insert (format " (%s x %s :%s%sk) " width height (if anime " GIF ANIME" "") (round (/ size 1024))))
+	(insert (format " (%s x %s :%s%sk) " width height
+			(if anime " GIF ANIME" "") (round (/ size 1024))))
 
-      (if (re-search-forward
-	   (concat "h?ttp://\\([^ \t\n\r]+\\.\\("
-		   (mapconcat (lambda (s) s)
-			      navi2ch-browse-url-image-extentions "\\|")
-		   "\\)\\)") nil t)
+	(when (re-search-forward
+	       (concat "h?ttp://\\([^ \t\n\r]+\\."
+		       (regexp-opt navi2ch-browse-url-image-extentions)
+		       "\\)") nil t)
 	  (save-excursion
 	    (let ((url (concat "http://" (match-string 1)))
 		  (beg (match-beginning 0))
 		  (end (match-end 0)))
-	      (add-text-properties beg end '(my-navi2ch "shown")))))))))
-
-(setq navi2ch-thumbnail-404-list
-      (list "/404\.s?html$"
-	    "10mai_404\.html$"))
+	      (add-text-properties beg end '(my-navi2ch "shown"))))))))
 
 (defun navi2ch-thumbnail-select-current-link (&optional browse-p)
   (interactive "P")
@@ -421,13 +408,11 @@
 		    (substring prop 7 nil)))
 	  (setq url (navi2ch-thumbnail-url-status-check prop))
 	  (dolist (l navi2ch-thumbnail-404-list)
-	    (if (string-match l url)
-		(error "ファイルが404 url=%s" url)))
+	    (when (string-match l url)
+	      (error "ファイルが404 url=%s" url)))
 	  (navi2ch-thumbnail-show-image url prop)))))
      ((eq type 'image)
       (navi2ch-thumbnail-show-image-external)))))
-
-(setq navi2ch-thumbnail-enable-status-check t)
 
 (defun navi2ch-thumbnail-url-status-check (url)
   "画像取得前に302や404のチェック。302の場合移動先URLを返す"
@@ -439,17 +424,16 @@
 		      (string= status "405")))
 	(setq proc (navi2ch-net-send-request
 		    url "HEAD"
-		    (list '("User-Agent:" . "navi2ch 1.6" )
+		    (list (cons "User-Agent:" navi2ch-net-user-agent)
 			  (cons "Referer" url ))))
-	(if (not proc) (error "サーバに接続できません url=%s" url))
+	(unless proc (error "サーバに接続できません url=%s" url))
 	(setq status (navi2ch-net-get-status proc))
-	(if (not status) (error "サーバに接続できません url=%s" url))
+	(unless status (error "サーバに接続できません url=%s" url))
 	(message "status %s" status)
 
-	(setq header (navi2ch-net-get-header proc))
-	(setq md5 (cdr (assq 'Content-MD5 header)))
-	(if md5
-	    (error "Content-MD5 %s" md5))
+	;; (setq header (navi2ch-net-get-header proc))	
+	;; (when (setq md5 (cdr (assq 'Content-MD5 header)))
+	;;   (error "Content-MD5 %s" md5))
 
 	(cond ((or (string= status "404")
 		   (string= status "403")
@@ -474,7 +458,7 @@
 	  (cond
 	   ((= code #xc4)
 	    ;; DHT
-	      (message "navi2ch-thumbnail-image-jpeg-identify:code FFC4 DHT"))
+	    (message "navi2ch-thumbnail-image-jpeg-identify:code FFC4 DHT"))
 	   ((and (>= code #xc0) (<= code #xcF))
 	    ;; SOF0 DCT
 	    ;; SOF2
@@ -578,17 +562,18 @@
 それでもダメならnilを返す。sizeで読み込むサイズを指定もできる"
   (let ((file-size (nth 7 (file-attributes file))))
     (catch 'identify
-      (when (file-readable-p file)
+      (unless (file-readable-p file) (throw 'identify nil))
       (with-temp-buffer
 	(set-buffer-multibyte nil)
 	(unless size
 	  (setq size 1024))
 	(insert-file-contents-literally file nil 0 size)
-	(setq data (buffer-substring (point-min) (min (point-max)
-					      (+ (point-min) size))))
+	(setq data (buffer-substring (point-min)
+				     (min (point-max)
+					  (+ (point-min) size))))
 	(cond
 	 ;; gif
-	 ((string-match "^GIF" data)
+	 ((string-match "\\`GIF" data)
 	  (setq rtn (navi2ch-thumbnail-image-gif-identify data)))
 	 ;; png
 	 ((string-match "\\`\x89\x50\x4E\x47\x0D\x0A\x1A\x0A" data)
@@ -597,7 +582,7 @@
 	 ((string-match "\\`\xff\xd8" data)
 	  (setq rtn (navi2ch-thumbnail-image-jpeg-identify data))))
 	(if rtn (throw 'identify rtn)))
-
+      
       ;; 情報が取得できなかった場合はヘッダをさらに読み込む
       (setq size (* size 10))
       (if (> size file-size)
@@ -617,4 +602,4 @@
 		 "\\([0-9]+\\) \\([0-9]+\\) \\([0-9]+\\) \\([0-9]+\\)")
 	    (list (string-to-number (match-string 2))
 		  (string-to-number (match-string 3))
-		  (> (string-to-number (match-string 1)) 1)))))))))
+		  (> (string-to-number (match-string 1)) 1))))))))
