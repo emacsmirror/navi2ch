@@ -145,28 +145,29 @@
 
 (defun navi2ch-thumbnail-show-image-not-image-url (url &optional force)
   "imepita等のURLが画像っぽくない場合の処理"
-  (cond
-   ;; imepita
-   ((string-match "h?ttp://w*\\.?imepita\\.jp/\\([0-9/]+\\)" url)
-    (setq alturl (concat "http://imepita.jp/image/" (match-string 1 url)))
-    (message "imepita: %s %s" url alturl)
-    (if (navi2ch-thumbnail-insert-image-cache url)
-	(message "cache read")
-      (when force
-	(setq rtn (navi2ch-thumbnail-show-image alturl url))
-	(message "return %s" rtn))))
-   ((string-match
-     "h?ttp://i-bbs\\.sijex\\.net/imageDisp\\.jsp\\?id=watahiki&file=\\([0-9o]+\\.jpg\\)"
-     url)
-    (message "sjex: %s" url)
-    (setq alturl (concat "http://image.i-bbs.sijex.net/bbs/watahiki/"
-			 (match-string 1 url)))
-    (if (navi2ch-thumbnail-insert-image-cache alturl)
-	(message "sijex キャッシュから読み込みました")
-      (message "sijex: %s %s" url alturl)
-      (if force
-	  (navi2ch-thumbnail-show-image alturl url))))
-   (t nil)))
+  (let (alturl rtn)
+    (cond
+     ;; imepita
+     ((string-match "h?ttp://w*\\.?imepita\\.jp/\\([0-9/]+\\)" url)
+      (setq alturl (concat "http://imepita.jp/image/" (match-string 1 url)))
+      (message "imepita: %s %s" url alturl)
+      (if (navi2ch-thumbnail-insert-image-cache url)
+	  (message "cache read")
+	(when force
+	  (setq rtn (navi2ch-thumbnail-show-image alturl url))
+	  (message "return %s" rtn))))
+     ((string-match
+       "h?ttp://i-bbs\\.sijex\\.net/imageDisp\\.jsp\\?id=watahiki&file=\\([0-9o]+\\.jpg\\)"
+       url)
+      (message "sjex: %s" url)
+      (setq alturl (concat "http://image.i-bbs.sijex.net/bbs/watahiki/"
+			   (match-string 1 url)))
+      (if (navi2ch-thumbnail-insert-image-cache alturl)
+	  (message "sijex キャッシュから読み込みました")
+	(message "sijex: %s %s" url alturl)
+	(if force
+	    (navi2ch-thumbnail-show-image alturl url))))
+     (t nil))))
 
 (defun navi2ch-thumbnail-show-image-external ()
   "外部ビューアーで表示"
@@ -196,7 +197,7 @@
   (if (string-match "h?ttp://\\(.+\\)$" url)
       (setq url (match-string 1 url)))
   (let ((thumb_dir navi2ch-thumbnail-thumbnail-directory)
-	file thumb)
+	file thumb image-attr)
     (setq url (navi2ch-thumbnail-image-escape-filename url))
     (setq file (concat thumb_dir url))
     (setq thumb (concat thumb_dir url ".jpg"))
@@ -303,7 +304,8 @@
   (save-excursion
     (let ((buffer-read-only nil)
 	  (thumb-dir navi2ch-thumbnail-thumbnail-directory)
-	  thumb-file file width height size anime filename)
+	  thumb-file file width height size anime filename
+	  image-attr)
       (unless (and (stringp org-url)
 		   (string-match "tp://\\(.+\\)$" org-url))
 	(error "URL not match"))
@@ -394,7 +396,8 @@
 (defun navi2ch-thumbnail-select-current-link (&optional browse-p)
   (interactive "P")
   (let ((type (get-text-property (point) 'navi2ch-link-type))
-	(prop (get-text-property (point) 'navi2ch-link)))
+	(prop (get-text-property (point) 'navi2ch-link))
+	url)
     (cond
      ((eq type 'url)
       (cond
@@ -417,7 +420,7 @@
 (defun navi2ch-thumbnail-url-status-check (url)
   "画像取得前に302や404のチェック。302の場合移動先URLを返す"
   (when navi2ch-thumbnail-enable-status-check
-    (let (header status md5)
+    (let (header status md5 proc)
       (while (not (or (string= status "200")
 		      (string= status "201")
 		      (string= status "400")
@@ -501,7 +504,7 @@
 	xsize
 	ysize
 	(anime nil)
-	sgct)
+	sgct slct)
     (setq i (+ i 6))
 
     ;; GIF Header
@@ -560,7 +563,8 @@
   "画像ファイルから幅,高さ,GIFアニメか？を取得してlistで返す。
 取得できなかった場合は外部プログラム(navi2ch-thumbnail-image-identify-program)に頼る。
 それでもダメならnilを返す。sizeで読み込むサイズを指定もできる"
-  (let ((file-size (nth 7 (file-attributes file))))
+  (let ((file-size (nth 7 (file-attributes file)))
+	data rtn)
     (catch 'identify
       (unless (file-readable-p file) (throw 'identify nil))
       (with-temp-buffer
